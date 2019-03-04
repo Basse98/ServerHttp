@@ -4,7 +4,6 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
 
@@ -73,6 +72,26 @@ public class Main implements Runnable{
 
             // get first line of the request from the client
             String input = in.readLine();
+
+            String inputPost = "";
+            int length = 0;
+            while(!(inputPost = in.readLine()).equals("")){
+                if(inputPost.startsWith("Content-Length: ")){
+                    String[] tempArray;
+                    tempArray = inputPost.split(":");
+                    String tempString = tempArray[1];
+                    tempString = tempString.substring(1);
+                    length = Integer.parseInt(tempString);
+                }
+            }
+
+            String s = "";
+            if( length > 0) {
+                char[] chars = new char[length];
+                int i = in.read(chars);
+                s = new String(chars);
+            }
+
             // we parse the request with a string tokenizer
             StringTokenizer parse = new StringTokenizer(input);
             String method = parse.nextToken().toUpperCase(); // we get the HTTP method of the client
@@ -115,19 +134,37 @@ public class Main implements Runnable{
                 String content = getContentType(fileRequested);
 
                 if (method.equals("GET")) { // GET method so we return content
-                    byte[] fileData = readFileData(file, fileLength);
 
-                    // send HTTP Headers
-                    out.println("HTTP/1.1 200 OK");
-                    out.println("Server: Java HTTP Server from SSaurel : 1.0");
-                    out.println("Date: " + new Date());
-                    out.println("Content-type: " + content);
-                    out.println("Content-length: " + fileLength);
-                    out.println(); // blank line between headers and content, very important !
-                    out.flush(); // flush character output stream buffer
+                    if(fileRequested.contains("?")){
 
-                    dataOut.write(fileData, 0, fileLength);
-                    dataOut.flush();
+                        Map<String,String> map = SplitGETUrl.splitUrl(fileRequested);
+                        String json = Json.mapStringStringToJson(map);
+
+                        out.println("HTTP/1.1 200 OK");
+                        out.println("Server: Java HTTP Server");
+                        out.println("Date: " + new Date());
+                        out.println("Content-type: application/json");
+                        out.println("Content-length: " + json.getBytes().length);
+                        out.println();
+                        out.flush();
+                        dataOut.write(json.getBytes());
+                        dataOut.flush();
+
+                    }else {
+                        byte[] fileData = readFileData(file, fileLength);
+
+                        // send HTTP Headers
+                        out.println("HTTP/1.1 200 OK");
+                        out.println("Server: Java HTTP Server");
+                        out.println("Date: " + new Date());
+                        out.println("Content-type: " + content);
+                        out.println("Content-length: " + fileLength);
+                        out.println(); // blank line between headers and content, very important !
+                        out.flush(); // flush character output stream buffer
+
+                        dataOut.write(fileData, 0, fileLength);
+                        dataOut.flush();
+                    }
                 }
 
                 if(method.equals("HEAD")){
@@ -144,14 +181,18 @@ public class Main implements Runnable{
 
                 if(method.equals("POST")){
 
-                    if(fileRequested.contains("?")){
-                        Map<String,String> map = new HashMap<>(InfoFromUrl.splitUrl(fileRequested));
-                        String string1 = Json.mapStringStringToJson(map);
-                        out.println(string1);
-                        out.flush();
-                    }
+                    Map<String,String> map = InfoFromUrl.splitUrl(s);
+                    String json = Json.mapStringStringToJson(map);
 
-
+                    out.println("HTTP/1.1 200 OK");
+                    out.println("Server: Java HTTP Server");
+                    out.println("Date: " + new Date());
+                    out.println("Content-type: application/json");
+                    out.println("Content-length: " + json.getBytes().length);
+                    out.println();
+                    out.flush();
+                    dataOut.write(json.getBytes());
+                    dataOut.flush();
                 }
 
                 if (verbose) {

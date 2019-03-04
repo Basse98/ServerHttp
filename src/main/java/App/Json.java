@@ -14,6 +14,7 @@ public class Json {
         if (map == null)
             map = new HashMap<String, String>();
         return gson.toJson(map);
+
     }
 
 }
